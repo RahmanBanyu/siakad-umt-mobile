@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:siakad_ft/core/utils/helpers.dart';
+import 'package:siakad_ft/services/auth_service.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
+  const ChangePasswordScreen({Key? key}) : super(key: key);
+
   @override
   _ChangePasswordScreenState createState() => _ChangePasswordScreenState();
 }
@@ -9,10 +13,52 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  String? token; // token user
 
   bool _oldPasswordVisible = false;
   bool _newPasswordVisible = false;
   bool _confirmPasswordVisible = false;
+  bool _isLoading = false;
+
+  void _handleChangePassword() async {
+    token = await Prefs.getToken();
+    final oldPass = _oldPasswordController.text.trim();
+    final newPass = _newPasswordController.text.trim();
+    final confirmPass = _confirmPasswordController.text.trim();
+    print("Token: $token");
+    print("Old password: $oldPass, New password: $newPass");
+
+    if (oldPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Semua field wajib diisi")));
+      return;
+    }
+
+    if (newPass != confirmPass) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Password baru tidak cocok")));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final result = await AuthService.resetPassword(
+      token!,
+      oldPass,
+      newPass,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (result["success"] == true) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result["message"])));
+      Navigator.pop(context); // kembali ke halaman sebelumnya
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result["message"])));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,24 +114,24 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: handle logic simpan password
-                },
+                onPressed: _isLoading ? null : _handleChangePassword,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFA726), // oranye
+                  backgroundColor: const Color(0xFFFFA726),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  "Simpan",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "Simpan",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:siakad_ft/core/utils/helpers.dart';
+import 'package:siakad_ft/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -9,12 +11,60 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   final TextEditingController _emailController =
-      TextEditingController(text: 'example@email.com');
-
+      TextEditingController(text: "");
   final TextEditingController _passwordController =
-      TextEditingController(text: 'password123'); // ⬅️ password langsung terisi
+      TextEditingController(text: "");
+
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final pass = _passwordController.text.trim();
+
+    if (email.isEmpty || pass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Email dan password wajib diisi")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final response = await AuthService.login(email, pass);
+
+    setState(() => _isLoading = false);
+
+    if (response["success"] == true) {
+      final user = response["user"];
+
+      await Prefs.saveToken(response["token"]);
+
+      if (user != null && user.id != null) {
+        await Prefs.saveUserId(user.id);
+      }
+
+      if (user != null && user.nim != null) {
+        await Prefs.setNim(user.nim);
+        print("NIM DISIMPAN: ${user.nim}");
+      }
+
+      if (user != null && user.name != null) {
+        await Prefs.setName(user.name);
+        print("NAMA DISIMPAN: ${user.name}");
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login Berhasil")),
+      );
+
+      Navigator.pushReplacementNamed(context, "/home");
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response["message"] ?? "Login gagal")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 // Username Field
                 const Text(
-                  'Username',
+                  'Email',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.black45,
@@ -152,20 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (_emailController.text.isNotEmpty &&
-                          _passwordController.text.isNotEmpty) {
-                        Navigator.pushReplacementNamed(context, "/home");
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Username dan Password tidak boleh kosong",
-                            ),
-                          ),
-                        );
-                      }
-                    },
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFA726),
                       shape: RoundedRectangleBorder(
